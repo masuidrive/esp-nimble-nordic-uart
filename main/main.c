@@ -10,7 +10,8 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 
-#define MAX_LINE_LENGTH 4096
+#define MAX_LINE_LENGTH 256
+#define RX_BUFFER_SIZE 16384
 #define BLE_UART_MTU 128
 
 #define DEVICE_NAME "MY BLE DEVICE"
@@ -36,11 +37,6 @@ static char *rx_line_buffer = NULL;
 static size_t rx_line_buffer_pos = 0;
 
 static int uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
-  printf("incoming message: %.*s\n", ctxt->om->om_len, ctxt->om->om_data);
-
-  struct os_mbuf *om = ble_hs_mbuf_from_flat(ctxt->om->om_data, ctxt->om->om_len);
-  ble_gattc_notify_custom(conn_hdl, notify_char_attr_hdl, om);
-
   for (int i = 0; i < ctxt->om->om_len; ++i) {
     const char c = ctxt->om->om_data[i];
     switch (c) {
@@ -49,18 +45,16 @@ static int uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
 
     case '\n':
       rx_line_buffer[rx_line_buffer_pos++] = '\0';
-      puts(rx_line_buffer);
-      /*
-            UBaseType_t res = xRingbufferSend(rx_buf_handle, rx_line_buffer, rx_line_buffer_pos, pdMS_TO_TICKS(1000));
-            if (res != pdTRUE) {
-              printf("Failed to send item\n");
-            }
-            */
+      UBaseType_t res = xRingbufferSend(rx_buf_handle, rx_line_buffer, rx_line_buffer_pos, pdMS_TO_TICKS(1000));
+      if (res != pdTRUE) {
+        printf("Failed to send item\n");
+      }
       rx_line_buffer_pos = 0;
       break;
 
     default:
-      rx_line_buffer[rx_line_buffer_pos++] = c;
+      if (rx_line_buffer_pos < MAX_LINE_LENGTH - 1)
+        rx_line_buffer[rx_line_buffer_pos++] = c;
       break;
     }
   }
@@ -146,13 +140,56 @@ void ble_app_on_sync(void) {
 
 void host_task(void *param) { nimble_port_run(); }
 
+esp_err_t bleuart_send(const char *message) {
+  struct os_mbuf *om = ble_hs_mbuf_from_flat(message, strlen(message));
+  int err = ble_gattc_notify_custom(conn_hdl, notify_char_attr_hdl, om);
+
+  return err ? ESP_FAIL : ESP_OK;
+}
+
+esp_err_t bleuart_sendln(const char *message) {
+  int err1 = bleuart_send(message);
+  if (err1)
+    return ESP_FAIL;
+  int err2 = bleuart_send("\r\n");
+  if (err2)
+    return ESP_FAIL;
+
+  return ESP_OK;
+}
+
+void notifyTask(void *parameter) {
+  static char mbuf[MAX_LINE_LENGTH + 1];
+
+  for (;;) {
+    size_t item_size;
+    const char *item = (char *)xRingbufferReceive(rx_buf_handle, &item_size, portMAX_DELAY);
+
+    if (item) {
+      int i;
+      for (i = 0; i < item_size; ++i) {
+        if (item[i] >= 'a' && item[i] <= 'z')
+          mbuf[i] = item[i] - 0x20;
+        else
+          mbuf[i] = item[i];
+      }
+      mbuf[item_size] = '\0';
+
+      bleuart_send(mbuf);
+      vRingbufferReturnItem(rx_buf_handle, (void *)item);
+    }
+  }
+
+  vTaskDelete(NULL);
+}
+
 void app_main(void) {
   nvs_flash_init();
 
   rx_line_buffer = malloc(MAX_LINE_LENGTH + 1);
   rx_line_buffer_pos = 0;
 
-  rx_buf_handle = xRingbufferCreate(1028, RINGBUF_TYPE_NOSPLIT);
+  rx_buf_handle = xRingbufferCreate(RX_BUFFER_SIZE, RINGBUF_TYPE_NOSPLIT);
   if (rx_buf_handle == NULL) {
     printf("Failed to create ring buffer\n");
   }
@@ -169,4 +206,6 @@ void app_main(void) {
 
   ble_hs_cfg.sync_cb = ble_app_on_sync;
   nimble_port_freertos_init(host_task);
+
+  xTaskCreate(notifyTask, "notifyTask", 5000, NULL, 1, NULL);
 }

@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 
 #include "esp-nimble-nordic-uart.h"
@@ -5,18 +6,12 @@
 #include "freertos/ringbuf.h"
 #include "freertos/task.h"
 
-#define MAX_LINE_LENGTH 256
-#define RX_BUFFER_SIZE 16384
-#define BLE_UART_MTU 128
-
 void notifyTask(void *parameter) {
-  static char mbuf[MAX_LINE_LENGTH + 1];
+  static char mbuf[CONFIG_NORDIC_UART_MAX_LINE_LENGTH + 1];
 
   for (;;) {
     size_t item_size;
     const char *item = (char *)xRingbufferReceive(nordic_uart_rx_buf_handle, &item_size, portMAX_DELAY);
-    puts(item);
-    puts("---");
 
     if (item) {
       int i;

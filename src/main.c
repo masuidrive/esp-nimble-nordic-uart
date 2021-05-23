@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 
 #include "esp-nimble-nordic-uart.h"
@@ -12,11 +13,11 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 
-#define MAX_LINE_LENGTH 256
-#define RX_BUFFER_SIZE 16384
-#define BLE_UART_MTU 128
+static const char *TAG = "NORDIC UART";
 
-#define DEVICE_NAME "MY BLE DEVICE"
+// #define CONFIG_NORDIC_UART_MAX_LINE_LENGTH 256
+// #define CONFIG_NORDIC_UART_RX_BUFFER_SIZE 4096
+// #define CONFIG_NORDIC_UART_DEVICE_NAME "MY BLE DEVICE"
 uint8_t ble_addr_type;
 void ble_app_advertise(void);
 
@@ -50,13 +51,13 @@ static int uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
       UBaseType_t res =
           xRingbufferSend(nordic_uart_rx_buf_handle, rx_line_buffer, rx_line_buffer_pos, pdMS_TO_TICKS(1000));
       if (res != pdTRUE) {
-        printf("Failed to send item\n");
+        ESP_LOGE(TAG, "Failed to send item");
       }
       rx_line_buffer_pos = 0;
       break;
 
     default:
-      if (rx_line_buffer_pos < MAX_LINE_LENGTH - 1)
+      if (rx_line_buffer_pos < CONFIG_NORDIC_UART_MAX_LINE_LENGTH - 1)
         rx_line_buffer[rx_line_buffer_pos++] = c;
       break;
     }
@@ -90,7 +91,7 @@ static const struct ble_gatt_svc_def gat_svcs[] = {
 static int ble_gap_event(struct ble_gap_event *event, void *arg) {
   switch (event->type) {
   case BLE_GAP_EVENT_CONNECT:
-    ESP_LOGI("GAP", "BLE_GAP_EVENT_CONNECT %s", event->connect.status == 0 ? "OK" : "Failed");
+    ESP_LOGI(TAG, "BLE_GAP_EVENT_CONNECT %s", event->connect.status == 0 ? "OK" : "Failed");
     conn_hdl = event->connect.conn_handle;
 
     if (event->connect.status != 0) {
@@ -98,15 +99,15 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
     }
     break;
   case BLE_GAP_EVENT_DISCONNECT:
-    ESP_LOGI("GAP", "BLE_GAP_EVENT_DISCONNECT");
+    ESP_LOGI(TAG, "BLE_GAP_EVENT_DISCONNECT");
     ble_app_advertise();
     break;
   case BLE_GAP_EVENT_ADV_COMPLETE:
-    ESP_LOGI("GAP", "BLE_GAP_EVENT_ADV_COMPLETE");
+    ESP_LOGI(TAG, "BLE_GAP_EVENT_ADV_COMPLETE");
     ble_app_advertise();
     break;
   case BLE_GAP_EVENT_SUBSCRIBE:
-    ESP_LOGI("GAP", "BLE_GAP_EVENT_SUBSCRIBE");
+    ESP_LOGI(TAG, "BLE_GAP_EVENT_SUBSCRIBE");
     break;
   default:
     break;
@@ -161,21 +162,21 @@ esp_err_t nordic_uart_sendln(const char *message) {
   return ESP_OK;
 }
 
-void nordic_uart_start(void) {
+esp_err_t nordic_uart_start(void) {
   nvs_flash_init();
 
-  rx_line_buffer = malloc(MAX_LINE_LENGTH + 1);
+  rx_line_buffer = malloc(CONFIG_NORDIC_UART_MAX_LINE_LENGTH + 1);
   rx_line_buffer_pos = 0;
 
-  nordic_uart_rx_buf_handle = xRingbufferCreate(RX_BUFFER_SIZE, RINGBUF_TYPE_NOSPLIT);
+  nordic_uart_rx_buf_handle = xRingbufferCreate(CONFIG_NORDIC_UART_RX_BUFFER_SIZE, RINGBUF_TYPE_NOSPLIT);
   if (nordic_uart_rx_buf_handle == NULL) {
-    printf("Failed to create ring buffer\n");
+    ESP_LOGE(TAG, "Failed to create ring buffer");
   }
 
   esp_nimble_hci_and_controller_init();
   nimble_port_init();
 
-  ble_svc_gap_device_name_set(DEVICE_NAME);
+  ble_svc_gap_device_name_set(CONFIG_NORDIC_UART_DEVICE_NAME);
   ble_svc_gap_init();
   ble_svc_gatt_init();
 
@@ -184,4 +185,8 @@ void nordic_uart_start(void) {
 
   ble_hs_cfg.sync_cb = ble_app_on_sync;
   nimble_port_freertos_init(host_task);
+
+  return ESP_OK;
 }
+
+void nordic_uart_stop(void) {}

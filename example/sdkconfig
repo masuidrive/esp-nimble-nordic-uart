@@ -1080,6 +1080,14 @@ CONFIG_WPA_MBEDTLS_CRYPTO=y
 # CONFIG_WPA_TESTING_OPTIONS is not set
 # CONFIG_WPA_WPS_WARS is not set
 # end of Supplicant
+
+#
+# Nimble Nordic UART Configuration
+#
+CONFIG_NORDIC_UART_DEVICE_NAME="Nordic UART"
+CONFIG_NORDIC_UART_MAX_LINE_LENGTH=256
+CONFIG_NORDIC_UART_RX_BUFFER_SIZE=4096
+# end of Nimble Nordic UART Configuration
 # end of Component config
 
 #

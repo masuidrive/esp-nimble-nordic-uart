@@ -130,12 +130,18 @@
         }
       }
 
+      let rx_buffer = "";
       async function handleNotifications(event) {
         if (characteristic_B) {
           try {
             let value = event.target.value;
             const text = new TextDecoder().decode(value);
-            consoleWrite(text);
+            rx_buffer += text;
+            let splited = rx_buffer.split(/\r*\n/g);
+            for(let i = 0; i < splited.length - 1; ++i) {
+              consoleWrite(splited.shift());
+            }
+            rx_buffer = splited.shift();
           } catch (error) {
             console.error(error);
             consoleWrite(error.stack, "#FF878D");

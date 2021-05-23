@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/CMakeFiles/bootloader
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/CMakeFiles/bootloader.rule
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/CMakeFiles/bootloader-complete.rule
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/Users/masuidrive/Downloads/_19_4_GATT_WRITE/example/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

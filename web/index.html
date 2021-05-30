@@ -34,12 +34,11 @@
 
     <div id="connectedForm" style="display: none">
       <div id="messageForm">
-        <input id="message" placeholder="Command text"/>
+        <textarea id="message" placeholder="Command text"></textarea>
         <button onclick="sendMessage()">Send</button>
       </div>
       <div id="log"></div>
       <button onclick="onDisconnectButtonClick()">Disconnect</button>
-
     </div>
 
     <script>
@@ -115,7 +114,7 @@
         if (!characteristic_A) {
           return;
         }
-        const text = messageEl.value + "\r\n";
+        const text = messageEl.value.split(/\r*\n/g).join("\r\n") + "\r\n";
         const arrayBuffe = new TextEncoder().encode(text);
         messageEl.value = "";
         consoleWrite(text, "#8787FF");
@@ -135,6 +134,7 @@
         if (characteristic_B) {
           try {
             let value = event.target.value;
+            console.log(value);
             const text = new TextDecoder().decode(value);
             rx_buffer += text;
             let splited = rx_buffer.split(/\r*\n/g);

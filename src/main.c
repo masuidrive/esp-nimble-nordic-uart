@@ -145,10 +145,15 @@ void ble_app_on_sync(void) {
 void host_task(void *param) { nimble_port_run(); }
 
 esp_err_t nordic_uart_send(const char *message) {
-  struct os_mbuf *om = ble_hs_mbuf_from_flat(message, strlen(message));
-  int err = ble_gattc_notify_custom(conn_hdl, notify_char_attr_hdl, om);
+  const int len = strlen(message);
+  for (int i = 0; i < len; i += BLE_MTU) {
+    struct os_mbuf *om = ble_hs_mbuf_from_flat(&message[i], MIN(BLE_MTU, len - i));
+    int err = ble_gattc_notify_custom(conn_hdl, notify_char_attr_hdl, om);
+    if (err)
+      return ESP_FAIL;
+  }
 
-  return err ? ESP_FAIL : ESP_OK;
+  return ESP_OK;
 }
 
 esp_err_t nordic_uart_sendln(const char *message) {

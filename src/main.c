@@ -167,9 +167,11 @@ esp_err_t nordic_uart_send(const char *message) {
 }
 
 esp_err_t nordic_uart_sendln(const char *message) {
-  int err1 = nordic_uart_send(message);
-  if (err1)
-    return ESP_FAIL;
+  if (strlen(message) > 0) {
+    int err1 = nordic_uart_send(message);
+    if (err1)
+      return ESP_FAIL;
+  }
   int err2 = nordic_uart_send("\r\n");
   if (err2)
     return ESP_FAIL;

@@ -157,11 +157,18 @@ void host_task(void *param) { nimble_port_run(); }
 // Split the message in BLE_MTU and send it.
 esp_err_t nordic_uart_send(const char *message) {
   const int len = strlen(message);
+  // Split the message in BLE_MTU and send it.
   for (int i = 0; i < len; i += BLE_MTU) {
     struct os_mbuf *om = ble_hs_mbuf_from_flat(&message[i], MIN(BLE_MTU, len - i));
-    int err = ble_gattc_notify_custom(ble_conn_hdl, notify_char_attr_hdl, om);
-    if (err)
-      return ESP_FAIL;
+    do {
+      int err = ble_gattc_notify_custom(ble_conn_hdl, notify_char_attr_hdl, om);
+      if (err == BLE_HS_ENOMEM) {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        continue;
+      }
+      if (err)
+        return ESP_FAIL;
+    } while (false);
   }
   return ESP_OK;
 }

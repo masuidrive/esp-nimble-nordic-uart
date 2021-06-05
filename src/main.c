@@ -160,8 +160,9 @@ esp_err_t nordic_uart_send(const char *message) {
   // Split the message in BLE_MTU and send it.
   for (int i = 0; i < len; i += BLE_MTU) {
     int err;
-    struct os_mbuf *om = ble_hs_mbuf_from_flat(&message[i], MIN(BLE_MTU, len - i));
+    struct os_mbuf *om;
   do_notify:
+    om = ble_hs_mbuf_from_flat(&message[i], MIN(BLE_MTU, len - i));
     err = ble_gattc_notify_custom(ble_conn_hdl, notify_char_attr_hdl, om);
     if (err == BLE_HS_ENOMEM) {
       vTaskDelay(100 / portTICK_PERIOD_MS);

@@ -53,9 +53,10 @@ static int uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
     // send a line to ringbuffer
     case '\n':
       rx_line_buffer[rx_line_buffer_pos] = '\0';
-      rx_line_buffer_pos = 0;
       UBaseType_t res =
-          xRingbufferSend(nordic_uart_rx_buf_handle, rx_line_buffer, rx_line_buffer_pos, pdMS_TO_TICKS(1000));
+          xRingbufferSend(nordic_uart_rx_buf_handle, rx_line_buffer, rx_line_buffer_pos + 1, pdMS_TO_TICKS(1000));
+      rx_line_buffer_pos = 0;
+
       if (res != pdTRUE) {
         ESP_LOGE(TAG, "Failed to send item");
         return -1;

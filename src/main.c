@@ -39,6 +39,8 @@ static uint16_t notify_char_attr_hdl;
 static char *rx_line_buffer = NULL;
 static size_t rx_line_buffer_pos = 0;
 
+static void (*nordic_uart_callback)(enum nordic_uart_callback_type callback_type) = NULL;
+
 // the ringbuffer is an interface with external
 RingbufHandle_t nordic_uart_rx_buf_handle;
 
@@ -130,9 +132,11 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
     if (event->connect.status != 0) {
       ble_app_advertise();
     }
+    nordic_uart_callback(NORDIC_UART_CONNECTED);
     break;
   case BLE_GAP_EVENT_DISCONNECT:
     ESP_LOGI(TAG, "BLE_GAP_EVENT_DISCONNECT");
+    nordic_uart_callback(NORDIC_UART_DISCONNECTED);
     ble_app_advertise();
     break;
   case BLE_GAP_EVENT_ADV_COMPLETE:
@@ -188,8 +192,9 @@ esp_err_t nordic_uart_sendln(const char *message) {
   return ESP_OK;
 }
 
-esp_err_t nordic_uart_start(void) {
+esp_err_t nordic_uart_start(void (*callback)(enum nordic_uart_callback_type callback_type)) {
   nvs_flash_init();
+  nordic_uart_callback = callback;
 
   // Buffer for receive BLE and split it with /\r*\n/
   rx_line_buffer = malloc(CONFIG_NORDIC_UART_MAX_LINE_LENGTH + 1);

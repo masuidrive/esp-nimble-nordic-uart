@@ -1,10 +1,4 @@
 menu "Nimble Nordic UART Configuration"
-    config NORDIC_UART_DEVICE_NAME
-        string "BLE device name"
-        default "Nordic UART"
-        help
-            Bluetooth device name for advertisement
-
     config NORDIC_UART_MAX_LINE_LENGTH
         int "UART max receive line length (bytes)"
         default 256

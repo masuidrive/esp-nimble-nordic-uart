@@ -5,20 +5,21 @@
 
 #include "esp_log.h"
 #include "esp_nimble_hci.h"
-#include "freertos/ringbuf.h"
 #include "host/ble_hs.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "nvs_flash.h"
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/ringbuf.h>
 
 static const char *TAG = "NORDIC UART";
 
 // #define CONFIG_NORDIC_UART_MAX_LINE_LENGTH 256
 // #define CONFIG_NORDIC_UART_RX_BUFFER_SIZE 4096
 // #define CONFIG_NORDIC_UART_DEVICE_NAME "MY BLE DEVICE"
-#define BLE_MTU 128
+#define BLE_SEND_MTU 128
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -89,18 +90,16 @@ static const struct ble_gatt_svc_def gat_svcs[] = {
      .uuid = BLE_UUID128_DECLARE(SERVICE_UUID),
      .characteristics =
          (struct ble_gatt_chr_def[]){
-
              {.uuid = BLE_UUID128_DECLARE(CHAR_UUID_RX),
               .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
               .access_cb = uart_receive},
-
              {.uuid = BLE_UUID128_DECLARE(CHAR_UUID_TX),
               .flags = BLE_GATT_CHR_F_NOTIFY,
               .val_handle = &notify_char_attr_hdl,
               .access_cb = uart_noop},
-
-             {0}}},
-    {0}};
+             {NULL},
+         }},
+    {NULL}};
 
 static int ble_gap_event(struct ble_gap_event *event, void *arg);
 static void ble_app_advertise(void) {
@@ -161,15 +160,15 @@ void ble_app_on_sync(void) {
 
 void host_task(void *param) { nimble_port_run(); }
 
-// Split the message in BLE_MTU and send it.
+// Split the message in BLE_SEND_MTU and send it.
 esp_err_t nordic_uart_send(const char *message) {
   const int len = strlen(message);
-  // Split the message in BLE_MTU and send it.
-  for (int i = 0; i < len; i += BLE_MTU) {
+  // Split the message in BLE_SEND_MTU and send it.
+  for (int i = 0; i < len; i += BLE_SEND_MTU) {
     int err;
     struct os_mbuf *om;
   do_notify:
-    om = ble_hs_mbuf_from_flat(&message[i], MIN(BLE_MTU, len - i));
+    om = ble_hs_mbuf_from_flat(&message[i], MIN(BLE_SEND_MTU, len - i));
     err = ble_gattc_notify_custom(ble_conn_hdl, notify_char_attr_hdl, om);
     if (err == BLE_HS_ENOMEM) {
       vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -194,8 +193,23 @@ esp_err_t nordic_uart_sendln(const char *message) {
   return ESP_OK;
 }
 
-esp_err_t nordic_uart_start(void (*callback)(enum nordic_uart_callback_type callback_type)) {
-  nvs_flash_init();
+/***
+ *
+ * Note:
+ * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/bluetooth/nimble/index.html
+ */
+esp_err_t nordic_uart_start(const char *device_name, void (*callback)(enum nordic_uart_callback_type callback_type)) {
+  // already initialized will return ESP_FAIL
+  if (rx_line_buffer) {
+    ESP_LOGE(TAG, "Already initialized");
+    return ESP_FAIL;
+  }
+
+  if (nvs_flash_init() != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to nvs_flash_init");
+    return ESP_FAIL;
+  }
+
   nordic_uart_callback = callback;
 
   // Buffer for receive BLE and split it with /\r*\n/
@@ -208,10 +222,17 @@ esp_err_t nordic_uart_start(void (*callback)(enum nordic_uart_callback_type call
   }
 
   // Initialize NimBLE
-  esp_nimble_hci_and_controller_init();
+  esp_err_t ret = esp_nimble_hci_and_controller_init();
+  if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "esp_nimble_hci_and_controller_init() failed with error: %d", ret);
+    return ESP_FAIL;
+  }
+
   nimble_port_init();
 
-  ble_svc_gap_device_name_set(CONFIG_NORDIC_UART_DEVICE_NAME);
+  // Initialize the NimBLE Host configuration
+  // Bluetooth device name for advertisement
+  ble_svc_gap_device_name_set(device_name);
   ble_svc_gap_init();
   ble_svc_gatt_init();
 
@@ -227,6 +248,7 @@ esp_err_t nordic_uart_start(void (*callback)(enum nordic_uart_callback_type call
 void nordic_uart_stop(void) {
   free(rx_line_buffer);
   rx_line_buffer = NULL;
+  rx_line_buffer_pos = 0;
 
   vRingbufferDelete(nordic_uart_rx_buf_handle);
   nordic_uart_rx_buf_handle = NULL;

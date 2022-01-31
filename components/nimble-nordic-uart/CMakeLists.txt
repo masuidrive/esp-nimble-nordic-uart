@@ -8,7 +8,7 @@ idf_component_register(
   SRCS
     "main.c"
   REQUIRES
-    bt 
+    bt
   PRIV_REQUIRES
     ${ESP_NIMBLE_PRIV_REQUIRES}
 )

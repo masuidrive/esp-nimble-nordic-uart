@@ -132,11 +132,13 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
     if (event->connect.status != 0) {
       ble_app_advertise();
     }
-    nordic_uart_callback(NORDIC_UART_CONNECTED);
+    if (nordic_uart_callback)
+      nordic_uart_callback(NORDIC_UART_CONNECTED);
     break;
   case BLE_GAP_EVENT_DISCONNECT:
     ESP_LOGI(TAG, "BLE_GAP_EVENT_DISCONNECT");
-    nordic_uart_callback(NORDIC_UART_DISCONNECTED);
+    if (nordic_uart_callback)
+      nordic_uart_callback(NORDIC_UART_DISCONNECTED);
     ble_app_advertise();
     break;
   case BLE_GAP_EVENT_ADV_COMPLETE:

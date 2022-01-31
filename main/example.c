@@ -32,6 +32,6 @@ void notifyTask(void *parameter) {
 }
 
 void app_main(void) {
-  nordic_uart_start();
+  nordic_uart_start(NULL);
   xTaskCreate(notifyTask, "notifyTask", 5000, NULL, 1, NULL);
 }

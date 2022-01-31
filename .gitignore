@@ -7,7 +7,7 @@ doxygen_warnings.txt
 /.metadata/
 .vscode/*
 *.o
-*.d 
+*.d
 *.elf
 *.hex
 *.bin

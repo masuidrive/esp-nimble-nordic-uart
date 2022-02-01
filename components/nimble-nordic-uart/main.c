@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "esp-nimble-nordic-uart.h"
+#include "nimble-nordic-uart.h"
 
 #include "esp_log.h"
 #include "esp_nimble_hci.h"
@@ -44,6 +44,34 @@ static void (*nordic_uart_callback)(enum nordic_uart_callback_type callback_type
 
 // the ringbuffer is an interface with external
 RingbufHandle_t nordic_uart_rx_buf_handle;
+
+static bool is_connected() { return rx_line_buffer != NULL; }
+
+static esp_err_t ringbuf_init() {
+  // Buffer for receive BLE and split it with /\r*\n/
+  rx_line_buffer = malloc(CONFIG_NORDIC_UART_MAX_LINE_LENGTH + 1);
+  rx_line_buffer_pos = 0;
+  nordic_uart_rx_buf_handle = xRingbufferCreate(CONFIG_NORDIC_UART_RX_BUFFER_SIZE, RINGBUF_TYPE_NOSPLIT);
+  if (nordic_uart_rx_buf_handle == NULL) {
+    ESP_LOGE(TAG, "Failed to create ring buffer");
+    return ESP_FAIL;
+  }
+  return ESP_OK;
+}
+
+static esp_err_t ringbuf_deinit() {
+  if (rx_line_buffer == NULL)
+    return ESP_OK;
+
+  free(rx_line_buffer);
+  rx_line_buffer = NULL;
+  rx_line_buffer_pos = 0;
+
+  vRingbufferDelete(nordic_uart_rx_buf_handle);
+  nordic_uart_rx_buf_handle = NULL;
+
+  return ESP_OK;
+}
 
 static int uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
   for (int i = 0; i < ctxt->om->om_len; ++i) {
@@ -97,11 +125,11 @@ static const struct ble_gatt_svc_def gat_svcs[] = {
               .flags = BLE_GATT_CHR_F_NOTIFY,
               .val_handle = &notify_char_attr_hdl,
               .access_cb = uart_noop},
-             {NULL},
+             {0},
          }},
-    {NULL}};
+    {0}};
 
-static int ble_gap_event(struct ble_gap_event *event, void *arg);
+static int ble_gap_event_cb(struct ble_gap_event *event, void *arg);
 static void ble_app_advertise(void) {
   struct ble_hs_adv_fields fields;
   memset(&fields, 0, sizeof(fields));
@@ -120,24 +148,35 @@ static void ble_app_advertise(void) {
   adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
   adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
-  ble_gap_adv_start(ble_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event, NULL);
+  int err = ble_gap_adv_start(ble_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, NULL);
+  if (err) {
+    if (err == BLE_HS_EALREADY) {
+      ble_gap_adv_stop();
+    }
+
+    ESP_LOGE(TAG, "Advertising start failed: err %d", err);
+  }
 }
 
-static int ble_gap_event(struct ble_gap_event *event, void *arg) {
+static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
   switch (event->type) {
   case BLE_GAP_EVENT_CONNECT:
     ESP_LOGI(TAG, "BLE_GAP_EVENT_CONNECT %s", event->connect.status == 0 ? "OK" : "Failed");
-    ble_conn_hdl = event->connect.conn_handle;
-    if (event->connect.status != 0) {
+    if (event->connect.status == 0) {
+      ble_conn_hdl = event->connect.conn_handle;
+      ringbuf_init();
+      if (nordic_uart_callback)
+        nordic_uart_callback(NORDIC_UART_CONNECTED);
+    } else {
       ble_app_advertise();
     }
-    if (nordic_uart_callback)
-      nordic_uart_callback(NORDIC_UART_CONNECTED);
+
     break;
   case BLE_GAP_EVENT_DISCONNECT:
     ESP_LOGI(TAG, "BLE_GAP_EVENT_DISCONNECT");
     if (nordic_uart_callback)
       nordic_uart_callback(NORDIC_UART_DISCONNECTED);
+    ringbuf_deinit();
     ble_app_advertise();
     break;
   case BLE_GAP_EVENT_ADV_COMPLETE:
@@ -153,16 +192,28 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
   return 0;
 }
 
-void ble_app_on_sync(void) {
-  ble_hs_id_infer_auto(0, &ble_addr_type);
+static void ble_app_on_sync_cb(void) {
+  int ret = ble_hs_id_infer_auto(0, &ble_addr_type);
+  if (ret != 0) {
+    ESP_LOGE(TAG, "Error ble_hs_id_infer_auto: %d", ret);
+  }
   ble_app_advertise();
 }
 
-void host_task(void *param) { nimble_port_run(); }
+// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/bluetooth/nimble/index.html#_CPPv434esp_nimble_hci_and_controller_initv
+static void ble_host_task(void *param) {
+  nimble_port_run(); // This function will return only when nimble_port_stop() is executed.
+  nimble_port_freertos_deinit();
+  ESP_LOGE(TAG, "nimble_port_freertos_deinit");
+
+  ringbuf_deinit();
+}
 
 // Split the message in BLE_SEND_MTU and send it.
 esp_err_t nordic_uart_send(const char *message) {
   const int len = strlen(message);
+  if (len == 0)
+    return ESP_OK;
   // Split the message in BLE_SEND_MTU and send it.
   for (int i = 0; i < len; i += BLE_SEND_MTU) {
     int err;
@@ -181,13 +232,9 @@ esp_err_t nordic_uart_send(const char *message) {
 }
 
 esp_err_t nordic_uart_sendln(const char *message) {
-  if (strlen(message) > 0) {
-    int err1 = nordic_uart_send(message);
-    if (err1)
-      return ESP_FAIL;
-  }
-  int err2 = nordic_uart_send("\r\n");
-  if (err2)
+  if (nordic_uart_send(message) != ESP_OK)
+    return ESP_FAIL;
+  if (nordic_uart_send("\r\n") != ESP_OK)
     return ESP_FAIL;
 
   return ESP_OK;
@@ -212,22 +259,12 @@ esp_err_t nordic_uart_start(const char *device_name, void (*callback)(enum nordi
 
   nordic_uart_callback = callback;
 
-  // Buffer for receive BLE and split it with /\r*\n/
-  rx_line_buffer = malloc(CONFIG_NORDIC_UART_MAX_LINE_LENGTH + 1);
-  rx_line_buffer_pos = 0;
-  nordic_uart_rx_buf_handle = xRingbufferCreate(CONFIG_NORDIC_UART_RX_BUFFER_SIZE, RINGBUF_TYPE_NOSPLIT);
-  if (nordic_uart_rx_buf_handle == NULL) {
-    ESP_LOGE(TAG, "Failed to create ring buffer");
-    return ESP_FAIL;
-  }
-
   // Initialize NimBLE
   esp_err_t ret = esp_nimble_hci_and_controller_init();
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "esp_nimble_hci_and_controller_init() failed with error: %d", ret);
     return ESP_FAIL;
   }
-
   nimble_port_init();
 
   // Initialize the NimBLE Host configuration
@@ -239,19 +276,28 @@ esp_err_t nordic_uart_start(const char *device_name, void (*callback)(enum nordi
   ble_gatts_count_cfg(gat_svcs);
   ble_gatts_add_svcs(gat_svcs);
 
-  ble_hs_cfg.sync_cb = ble_app_on_sync;
-  nimble_port_freertos_init(host_task);
+  ble_hs_cfg.sync_cb = ble_app_on_sync_cb;
+
+  // crete NimBLE thread
+  nimble_port_freertos_init(ble_host_task);
 
   return ESP_OK;
 }
 
 void nordic_uart_stop(void) {
-  free(rx_line_buffer);
-  rx_line_buffer = NULL;
-  rx_line_buffer_pos = 0;
+  esp_err_t rc = ble_gap_adv_stop();
+  if (rc) {
+    ESP_LOGD(TAG, "Error in stopping advertisement with err code = %d", rc);
+  }
 
-  vRingbufferDelete(nordic_uart_rx_buf_handle);
-  nordic_uart_rx_buf_handle = NULL;
+  int ret = nimble_port_stop();
+  if (ret == 0) {
+    nimble_port_deinit();
+    ret = esp_nimble_hci_and_controller_deinit();
+    if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "esp_nimble_hci_and_controller_deinit() failed with error: %d", ret);
+    }
+  }
 
-  nimble_port_freertos_deinit();
+  nordic_uart_callback = NULL;
 }

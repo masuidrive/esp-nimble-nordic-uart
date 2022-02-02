@@ -1,0 +1,23 @@
+# Ignore uncrustify backups
+*.unc*
+doc/html/*
+doc/output/*
+doc/tag/*
+doxygen_warnings.txt
+/.metadata/
+.vscode/*
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.pyc
+.DS_Store
+
+# Ignore top-level build dir
+/build*/
+/tmp
+
+# Ignore certificate files
+*.pem
+*.crt

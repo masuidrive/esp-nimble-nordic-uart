@@ -6,9 +6,9 @@ idf_component_register(
   INCLUDE_DIRS
     "include"
   SRCS
-    "main.c"
+    "main.c" "nimble.c" "buffer.c"
   REQUIRES
-    bt
+    bt unity
   PRIV_REQUIRES
     ${ESP_NIMBLE_PRIV_REQUIRES}
 )

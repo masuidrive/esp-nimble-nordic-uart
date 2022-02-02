@@ -5,11 +5,8 @@ idf_component_register(
     "esp32c3"
   INCLUDE_DIRS
     "include"
-  SRCS
-    "main.c" "nimble.c" "buffer.c"
+  SRC_DIRS
+    "src"
   REQUIRES
-    bt unity
-  PRIV_REQUIRES
-    ${ESP_NIMBLE_PRIV_REQUIRES}
+    bt
 )
-project(nimble-nordic-uart)

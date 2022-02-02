@@ -3,18 +3,18 @@
 
 #include "nimble-nordic-uart.h"
 
-TEST_CASE("nordic_uart_start", "[bt]") {
+TEST_CASE("nordic_uart_start", "[nimble]") {
   TEST_ESP_OK(nordic_uart_start("Nordic UART", NULL));
   nordic_uart_stop();
 }
 
-TEST_CASE("double nordic_uart_start", "[bt]") {
+TEST_CASE("double nordic_uart_start", "[nimble]") {
   TEST_ESP_OK(nordic_uart_start("Nordic UART", NULL));
   TEST_ESP_ERR(ESP_FAIL, nordic_uart_start("Nordic UART", NULL));
   nordic_uart_stop();
 }
 
-TEST_CASE("twice nordic_uart_start and stop", "[bt]") {
+TEST_CASE("twice nordic_uart_start and stop", "[nimble]") {
   TEST_ESP_OK(nordic_uart_start("Nordic UART", NULL));
   nordic_uart_stop();
   TEST_ESP_OK(nordic_uart_start("Nordic UART", NULL));

@@ -1,7 +1,6 @@
 idf_component_register(
   SRC_DIRS "."
-  SRCS
-    "test_main.c"
+  SRCS "test_nimble.c" "test_buffer.c" "test_nimble" "test_buffer"
   INCLUDE_DIRS "."
-  REQUIRES cmock nimble-nordic-uart
+  REQUIRES nimble-nordic-uart
 )

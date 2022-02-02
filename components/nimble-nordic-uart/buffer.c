@@ -15,7 +15,7 @@ static size_t _nordic_uart_rx_line_buf_pos = 0;
 esp_err_t _nordic_uart_send_line_buf_to_ring_buf() {
   _nordic_uart_rx_line_buf[_nordic_uart_rx_line_buf_pos] = '\0';
   UBaseType_t res = xRingbufferSend(nordic_uart_rx_buf_handle, _nordic_uart_rx_line_buf,
-                                    _nordic_uart_rx_line_buf_pos + 1, pdMS_TO_TICKS(1000));
+                                    _nordic_uart_rx_line_buf_pos + 1, pdMS_TO_TICKS(100));
   _nordic_uart_rx_line_buf_pos = 0;
 
   return res == pdTRUE ? ESP_OK : ESP_FAIL;
@@ -32,13 +32,13 @@ esp_err_t _nordic_uart_linebuf_append(char c) {
   case '\0':
     if (_nordic_uart_send_line_buf_to_ring_buf() != ESP_OK) {
       ESP_LOGE(TAG, "Failed to send item");
-      return -1;
+      return ESP_FAIL;
     }
     break;
 
   // push char to local line buffer
   default:
-    if (_nordic_uart_rx_line_buf_pos < CONFIG_NORDIC_UART_MAX_LINE_LENGTH - 1) {
+    if (_nordic_uart_rx_line_buf_pos < CONFIG_NORDIC_UART_MAX_LINE_LENGTH) {
       _nordic_uart_rx_line_buf[_nordic_uart_rx_line_buf_pos++] = c;
     } else {
       ESP_LOGE(TAG, "line buffer overflow");
@@ -51,7 +51,7 @@ esp_err_t _nordic_uart_linebuf_append(char c) {
 
 esp_err_t _nordic_uart_buf_deinit() {
   if (!_nordic_uart_linebuf_initialized())
-    return ESP_OK;
+    return ESP_FAIL;
 
   free(_nordic_uart_rx_line_buf);
   _nordic_uart_rx_line_buf = NULL;

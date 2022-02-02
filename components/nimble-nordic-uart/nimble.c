@@ -37,9 +37,7 @@ static void (*_nordic_uart_callback)(enum nordic_uart_callback_type callback_typ
 static int uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
   for (int i = 0; i < ctxt->om->om_len; ++i) {
     const char c = ctxt->om->om_data[i];
-    if (_nordic_uart_linebuf_append(c) != ESP_OK) {
-      return -1;
-    }
+    _nordic_uart_linebuf_append(c);
   }
   return 0;
 }

@@ -14,7 +14,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/ringbuf.h>
 
-static const char *TAG = "NORDIC UART";
+static const char *_TAG = "NORDIC UART";
 
 // #define CONFIG_NORDIC_UART_MAX_LINE_LENGTH 256
 // #define CONFIG_NORDIC_UART_RX_BUFFER_SIZE 4096

@@ -1,8 +1,7 @@
 #pragma once
 
-#include "sdkconfig.h"
-
 #include "esp_log.h"
+#include "esp_nimble_hci.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
 
@@ -13,11 +12,14 @@ enum nordic_uart_callback_type {
   NORDIC_UART_CONNECTED,
 };
 
+typedef void (*uart_receive_callback_t)(struct ble_gatt_access_ctxt *ctxt);
+
 esp_err_t nordic_uart_start(const char *device_name, void (*callback)(enum nordic_uart_callback_type callback_type));
 void nordic_uart_stop(void);
 
 esp_err_t nordic_uart_send(const char *message);
 esp_err_t nordic_uart_sendln(const char *message);
+esp_err_t nordic_uart_yield(uart_receive_callback_t uart_receive_callback);
 
 // private funcs for testing.
 esp_err_t _nordic_uart_buf_deinit();

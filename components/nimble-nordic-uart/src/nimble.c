@@ -33,17 +33,27 @@ static uint16_t ble_conn_hdl;
 static uint16_t notify_char_attr_hdl;
 
 static void (*_nordic_uart_callback)(enum nordic_uart_callback_type callback_type) = NULL;
+static uart_receive_callback_t _uart_receive_callback = NULL;
 
-static int uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
-  for (int i = 0; i < ctxt->om->om_len; ++i) {
-    const char c = ctxt->om->om_data[i];
-    _nordic_uart_linebuf_append(c);
+esp_err_t nordic_uart_yield(uart_receive_callback_t uart_receive_callback) {
+  _uart_receive_callback = uart_receive_callback;
+  return ESP_OK;
+}
+
+static int _uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
+  if (_uart_receive_callback) {
+    _uart_receive_callback(ctxt);
+  } else {
+    for (int i = 0; i < ctxt->om->om_len; ++i) {
+      const char c = ctxt->om->om_data[i];
+      _nordic_uart_linebuf_append(c);
+    }
   }
   return 0;
 }
 
 // notify GATT callback is no operation.
-static int uart_noop(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
+static int _uart_noop(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
   return 0;
 }
 
@@ -54,11 +64,11 @@ static const struct ble_gatt_svc_def gat_svcs[] = {
          (struct ble_gatt_chr_def[]){
              {.uuid = BLE_UUID128_DECLARE(CHAR_UUID_RX),
               .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
-              .access_cb = uart_receive},
+              .access_cb = _uart_receive},
              {.uuid = BLE_UUID128_DECLARE(CHAR_UUID_TX),
               .flags = BLE_GATT_CHR_F_NOTIFY,
               .val_handle = &notify_char_attr_hdl,
-              .access_cb = uart_noop},
+              .access_cb = _uart_noop},
              {0},
          }},
     {0}};

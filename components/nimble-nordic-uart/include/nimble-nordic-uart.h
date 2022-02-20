@@ -1,9 +1,11 @@
 #pragma once
 
-#include "esp_log.h"
-#include "esp_nimble_hci.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/ringbuf.h"
+#include <stdint.h>
+
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/ringbuf.h>
+#include <host/ble_hs.h>
 
 extern RingbufHandle_t nordic_uart_rx_buf_handle;
 

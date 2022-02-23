@@ -112,6 +112,7 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
     }
     break;
   case BLE_GAP_EVENT_DISCONNECT:
+    _nordic_uart_linebuf_append('\003'); // send Ctrl-C
     ESP_LOGI(_TAG, "BLE_GAP_EVENT_DISCONNECT");
     if (_nordic_uart_callback)
       _nordic_uart_callback(NORDIC_UART_DISCONNECTED);

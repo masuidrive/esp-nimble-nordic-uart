@@ -208,7 +208,7 @@ esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nord
 
   ble_hs_cfg.sync_cb = ble_app_on_sync_cb;
 
-  // crete NimBLE thread
+  // Create NimBLE thread
   nimble_port_freertos_init(ble_host_task);
 
   return ESP_OK;

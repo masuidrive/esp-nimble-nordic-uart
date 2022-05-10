@@ -37,6 +37,13 @@
         <textarea id="message" placeholder="Command text"></textarea>
         <button onclick="sendMessage()">Send</button>
       </div>
+      <div>
+        <button onclick='sendMessage("RUN 1\n{\"command\":\"start\",\"led\":{\"animation\":\"breath\", \"color\":1052688, \"interval\":1.0},\"sound\":{\"name\":\"alerm1\",\"loop\":10}}")'>White breath &amp; alerm1</button>
+        <button onclick='sendMessage("RUN 1\n{\"command\":\"start\",\"led\":{\"animation\":\"blink\", \"color\":8912896, \"interval\":1.0},\"sound\":{\"name\":\"warning1\"}}")'>Red breath &amp; warning1</button>
+        <button onclick='sendMessage("RUN 1\n{\"command\":\"start\",\"led\":{\"animation\":\"light\", \"color\":34816, \"interval\":1.0},\"sound\":{\"name\":\"digital1\"}}")'>Green &amp; digital1</button>
+        <button onclick='sendMessage("RUN 1\n{\"command\":\"start\",\"led\":{\"animation\":\"blink\", \"color\":34816, \"interval\":1.0},\"sound\":{\"url\":\"http://attention1-firmware.s3.ap-northeast-1.amazonaws.com/reservation1.bin\"}}")'>Green &amp; 予約が一件入っています </button>
+
+      </div>
       <div id="log"></div>
       <button onclick="onDisconnectButtonClick()">Disconnect</button>
     </div>
@@ -110,11 +117,11 @@
         document.getElementById("connectForm").style.display = "block";
         document.getElementById("connectedForm").style.display = "none";
       }
-      async function sendMessage() {
+      async function sendMessage(msg) {
         if (!characteristic_A) {
           return;
         }
-        const text = messageEl.value.split(/\r*\n/g).join("\r\n") + "\r\n";
+        const text = (msg ?? messageEl.value).split(/\r*\n/g).join("\r\n") + "\r\n";
         const arrayBuffe = new TextEncoder().encode(text);
         messageEl.value = "";
         consoleWrite(text, "#8787FF");

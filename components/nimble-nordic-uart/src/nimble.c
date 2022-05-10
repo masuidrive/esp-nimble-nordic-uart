@@ -17,15 +17,25 @@ static const char *TAG = "NORDIC UART";
 #define BLE_SEND_MTU 128
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define B0(x) ((x)&0xFF)
+#define B1(x) (((x) >> 8) & 0xFF)
+#define B2(x) (((x) >> 16) & 0xFF)
+#define B3(x) (((x) >> 24) & 0xFF)
+#define B4(x) (((x) >> 32) & 0xFF)
+#define B5(x) (((x) >> 40) & 0xFF)
 
-// 6E400001-B5A3-F393-E0A9-E50E24DCCA9E
-#define SERVICE_UUID 0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0, 0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x00, 0x40, 0x6e
+// clang-format off
+#define UUID128_CONST(a32, b16, c16, d16, e48) \
+  BLE_UUID128_INIT( \
+    B0(e48), B1(e48), B2(e48), B3(e48), B4(e48), B5(e48), \
+    B0(d16), B1(d16), B0(c16), B1(c16), B0(b16), \
+    B1(b16), B0(a32), B1(a32), B2(a32), B3(a32), \
+  )
+// clang-format off
 
-// 6E400002-B5A3-F393-E0A9-E50E24DCCA9E
-#define CHAR_UUID_RX 0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0, 0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x00, 0x40, 0x6e
-
-// 6E400003-B5A3-F393-E0A9-E50E24DCCA9E
-#define CHAR_UUID_TX 0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0, 0x93, 0xf3, 0xa3, 0xb5, 0x03, 0x00, 0x40, 0x6e
+static const ble_uuid128_t SERVICE_UUID = UUID128_CONST(0x6E400001, 0xB5A3, 0xF393, 0xE0A9, 0xE50E24DCCA9E);
+static const ble_uuid128_t CHAR_UUID_RX = UUID128_CONST(0x6E400002, 0xB5A3, 0xF393, 0xE0A9, 0xE50E24DCCA9E);
+static const ble_uuid128_t CHAR_UUID_TX = UUID128_CONST(0x6E400003, 0xB5A3, 0xF393, 0xE0A9, 0xE50E24DCCA9E);
 
 static uint8_t ble_addr_type;
 
@@ -49,13 +59,13 @@ static int uart_noop(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt
 
 static const struct ble_gatt_svc_def gat_svcs[] = {
     {.type = BLE_GATT_SVC_TYPE_PRIMARY,
-     .uuid = BLE_UUID128_DECLARE(SERVICE_UUID),
+     .uuid = &SERVICE_UUID.u,
      .characteristics =
          (struct ble_gatt_chr_def[]){
-             {.uuid = BLE_UUID128_DECLARE(CHAR_UUID_RX),
+             {.uuid = (ble_uuid_t *)&CHAR_UUID_RX,
               .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
               .access_cb = uart_receive},
-             {.uuid = BLE_UUID128_DECLARE(CHAR_UUID_TX),
+             {.uuid = (ble_uuid_t *)&CHAR_UUID_TX,
               .flags = BLE_GATT_CHR_F_NOTIFY,
               .val_handle = &notify_char_attr_hdl,
               .access_cb = uart_noop},
@@ -66,24 +76,52 @@ static const struct ble_gatt_svc_def gat_svcs[] = {
 static int ble_gap_event_cb(struct ble_gap_event *event, void *arg);
 
 static void ble_app_advertise(void) {
-  struct ble_hs_adv_fields fields;
+  struct ble_hs_adv_fields fields, fields_ext;
   memset(&fields, 0, sizeof(fields));
 
-  fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_DISC_LTD;
+  // fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_DISC_LTD;
+  fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+
   fields.tx_pwr_lvl_is_present = 1;
   fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
 
-  fields.name = (uint8_t *)ble_svc_gap_device_name();
-  fields.name_len = strlen(ble_svc_gap_device_name());
-  fields.name_is_complete = 1;
+  char short_name[6]; // 5 plus zero byte
+  const char *name = ble_svc_gap_device_name();
+  strncpy(short_name, name, sizeof(short_name));
+  short_name[sizeof(short_name) - 1] = '\0';
+  fields.name = (uint8_t *)short_name;
+  fields.name_len = strlen(short_name);
+  if (strlen(name) <= sizeof(short_name) - 1) {
+    fields.name_is_complete = 1;
+  } else {
+    fields.name_is_complete = 0;
+  }
 
-  ble_gap_adv_set_fields(&fields);
+  fields.uuids128_is_complete = 1;
+  fields.uuids128 = &SERVICE_UUID;
+  fields.num_uuids128 = 1;
+
+  int err = ble_gap_adv_set_fields(&fields);
+  if (err) {
+    ESP_LOGE(TAG, "ble_gap_adv_set_fields, err %d", err);
+  }
+
+  memset(&fields_ext, 0, sizeof(fields_ext));
+  fields_ext.flags = fields.flags;
+  fields_ext.name = (uint8_t *)name;
+  fields_ext.name_len = strlen(name);
+  fields_ext.name_is_complete = 1;
+  err = ble_gap_adv_rsp_set_fields(&fields_ext);
+  if (err) {
+    ESP_LOGE(TAG, "ble_gap_adv_rsp_set_fields fields_ext, name might be too long, err %d", err);
+  }
+
   struct ble_gap_adv_params adv_params;
   memset(&adv_params, 0, sizeof(adv_params));
   adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
   adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
-  int err = ble_gap_adv_start(ble_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, NULL);
+  err = ble_gap_adv_start(ble_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, NULL);
   if (err) {
     ESP_LOGE(TAG, "Advertising start failed: err %d", err);
   }

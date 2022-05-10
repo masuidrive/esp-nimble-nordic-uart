@@ -10,7 +10,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include <freertos/FreeRTOS.h>
 
-static const char *TAG = "NORDIC UART";
+static const char *_TAG = "NORDIC UART";
 
 // #define CONFIG_NORDIC_UART_MAX_LINE_LENGTH 256
 // #define CONFIG_NORDIC_UART_RX_BUFFER_SIZE 4096
@@ -43,17 +43,27 @@ static uint16_t ble_conn_hdl;
 static uint16_t notify_char_attr_hdl;
 
 static void (*_nordic_uart_callback)(enum nordic_uart_callback_type callback_type) = NULL;
+static uart_receive_callback_t _uart_receive_callback = NULL;
 
-static int uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
-  for (int i = 0; i < ctxt->om->om_len; ++i) {
-    const char c = ctxt->om->om_data[i];
-    _nordic_uart_linebuf_append(c);
+esp_err_t nordic_uart_yield(uart_receive_callback_t uart_receive_callback) {
+  _uart_receive_callback = uart_receive_callback;
+  return ESP_OK;
+}
+
+static int _uart_receive(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
+  if (_uart_receive_callback) {
+    _uart_receive_callback(ctxt);
+  } else {
+    for (int i = 0; i < ctxt->om->om_len; ++i) {
+      const char c = ctxt->om->om_data[i];
+      _nordic_uart_linebuf_append(c);
+    }
   }
   return 0;
 }
 
 // notify GATT callback is no operation.
-static int uart_noop(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
+static int _uart_noop(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
   return 0;
 }
 
@@ -68,7 +78,7 @@ static const struct ble_gatt_svc_def gat_svcs[] = {
              {.uuid = (ble_uuid_t *)&CHAR_UUID_TX,
               .flags = BLE_GATT_CHR_F_NOTIFY,
               .val_handle = &notify_char_attr_hdl,
-              .access_cb = uart_noop},
+              .access_cb = _uart_noop},
              {0},
          }},
     {0}};
@@ -123,14 +133,14 @@ static void ble_app_advertise(void) {
 
   err = ble_gap_adv_start(ble_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, NULL);
   if (err) {
-    ESP_LOGE(TAG, "Advertising start failed: err %d", err);
+    ESP_LOGE(_TAG, "Advertising start failed: err %d", err);
   }
 }
 
 static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
   switch (event->type) {
   case BLE_GAP_EVENT_CONNECT:
-    ESP_LOGI(TAG, "BLE_GAP_EVENT_CONNECT %s", event->connect.status == 0 ? "OK" : "Failed");
+    ESP_LOGI(_TAG, "BLE_GAP_EVENT_CONNECT %s", event->connect.status == 0 ? "OK" : "Failed");
     if (event->connect.status == 0) {
       ble_conn_hdl = event->connect.conn_handle;
       if (_nordic_uart_callback)
@@ -140,18 +150,18 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
     }
     break;
   case BLE_GAP_EVENT_DISCONNECT:
-    ESP_LOGI(TAG, "BLE_GAP_EVENT_DISCONNECT");
+    _nordic_uart_linebuf_append('\003'); // send Ctrl-C
+    ESP_LOGI(_TAG, "BLE_GAP_EVENT_DISCONNECT");
     if (_nordic_uart_callback)
       _nordic_uart_callback(NORDIC_UART_DISCONNECTED);
-    _nordic_uart_buf_deinit();
     ble_app_advertise();
     break;
   case BLE_GAP_EVENT_ADV_COMPLETE:
-    ESP_LOGI(TAG, "BLE_GAP_EVENT_ADV_COMPLETE");
+    ESP_LOGI(_TAG, "BLE_GAP_EVENT_ADV_COMPLETE");
     ble_app_advertise();
     break;
   case BLE_GAP_EVENT_SUBSCRIBE:
-    ESP_LOGI(TAG, "BLE_GAP_EVENT_SUBSCRIBE");
+    ESP_LOGI(_TAG, "BLE_GAP_EVENT_SUBSCRIBE");
     break;
   default:
     break;
@@ -162,7 +172,7 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
 static void ble_app_on_sync_cb(void) {
   int ret = ble_hs_id_infer_auto(0, &ble_addr_type);
   if (ret != 0) {
-    ESP_LOGE(TAG, "Error ble_hs_id_infer_auto: %d", ret);
+    ESP_LOGE(_TAG, "Error ble_hs_id_infer_auto: %d", ret);
   }
   ble_app_advertise();
 }
@@ -205,12 +215,12 @@ esp_err_t _nordic_uart_send(const char *message) {
 esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nordic_uart_callback_type callback_type)) {
   // already initialized will return ESP_FAIL
   if (_nordic_uart_linebuf_initialized()) {
-    ESP_LOGE(TAG, "Already initialized");
+    ESP_LOGE(_TAG, "Already initialized");
     return ESP_FAIL;
   }
 
   if (nvs_flash_init() != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to nvs_flash_init");
+    ESP_LOGE(_TAG, "Failed to nvs_flash_init");
     return ESP_FAIL;
   }
 
@@ -220,7 +230,7 @@ esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nord
   // Initialize NimBLE
   esp_err_t ret = esp_nimble_hci_and_controller_init();
   if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "esp_nimble_hci_and_controller_init() failed with error: %d", ret);
+    ESP_LOGE(_TAG, "esp_nimble_hci_and_controller_init() failed with error: %d", ret);
     return ESP_FAIL;
   }
   nimble_port_init();
@@ -236,7 +246,7 @@ esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nord
 
   ble_hs_cfg.sync_cb = ble_app_on_sync_cb;
 
-  // crete NimBLE thread
+  // Create NimBLE thread
   nimble_port_freertos_init(ble_host_task);
 
   return ESP_OK;
@@ -246,7 +256,7 @@ void _nordic_uart_stop(void) {
   esp_err_t rc = ble_gap_adv_stop();
   if (rc) {
     // if already stoped BLE, some error is raised. but no problem.
-    ESP_LOGD(TAG, "Error in stopping advertisement with err code = %d", rc);
+    ESP_LOGD(_TAG, "Error in stopping advertisement with err code = %d", rc);
   }
 
   int ret = nimble_port_stop();
@@ -254,7 +264,7 @@ void _nordic_uart_stop(void) {
     nimble_port_deinit();
     ret = esp_nimble_hci_and_controller_deinit();
     if (ret != ESP_OK) {
-      ESP_LOGE(TAG, "esp_nimble_hci_and_controller_deinit() failed with error: %d", ret);
+      ESP_LOGE(_TAG, "esp_nimble_hci_and_controller_deinit() failed with error: %d", ret);
     }
   }
 

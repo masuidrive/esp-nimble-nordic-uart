@@ -4,7 +4,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/ringbuf.h>
 
-static const char *TAG = "NORDIC UART";
+static const char *_TAG = "NORDIC UART";
 
 // the ringbuffer is an interface with external
 RingbufHandle_t nordic_uart_rx_buf_handle;
@@ -23,7 +23,17 @@ esp_err_t _nordic_uart_send_line_buf_to_ring_buf() {
 
 esp_err_t _nordic_uart_linebuf_append(char c) {
   switch (c) {
-  // Skip \r
+  // break \003 == Ctrl-c
+  case '\003':
+    _nordic_uart_rx_line_buf[0] = '\003';
+    _nordic_uart_rx_line_buf_pos = 1;
+    if (_nordic_uart_send_line_buf_to_ring_buf() != ESP_OK) {
+      ESP_LOGE(_TAG, "Failed to send item");
+      return ESP_FAIL;
+    }
+    break;
+
+  // skip \r
   case '\r':
     break;
 
@@ -31,7 +41,7 @@ esp_err_t _nordic_uart_linebuf_append(char c) {
   case '\n':
   case '\0':
     if (_nordic_uart_send_line_buf_to_ring_buf() != ESP_OK) {
-      ESP_LOGE(TAG, "Failed to send item");
+      ESP_LOGE(_TAG, "Failed to send item");
       return ESP_FAIL;
     }
     break;
@@ -41,7 +51,7 @@ esp_err_t _nordic_uart_linebuf_append(char c) {
     if (_nordic_uart_rx_line_buf_pos < CONFIG_NORDIC_UART_MAX_LINE_LENGTH) {
       _nordic_uart_rx_line_buf[_nordic_uart_rx_line_buf_pos++] = c;
     } else {
-      ESP_LOGE(TAG, "line buffer overflow");
+      ESP_LOGE(_TAG, "line buffer overflow");
       return ESP_FAIL;
     }
     break;
@@ -71,7 +81,7 @@ esp_err_t _nordic_uart_buf_init() {
   _nordic_uart_rx_line_buf_pos = 0;
   nordic_uart_rx_buf_handle = xRingbufferCreate(CONFIG_NORDIC_UART_RX_BUFFER_SIZE, RINGBUF_TYPE_NOSPLIT);
   if (nordic_uart_rx_buf_handle == NULL) {
-    ESP_LOGE(TAG, "Failed to create ring buffer");
+    ESP_LOGE(_TAG, "Failed to create ring buffer");
     return ESP_FAIL;
   }
   return ESP_OK;

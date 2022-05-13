@@ -74,7 +74,7 @@ static const struct ble_gatt_svc_def gat_svcs[] = {
          (struct ble_gatt_chr_def[]){
              {.uuid = (ble_uuid_t *)&CHAR_UUID_RX,
               .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
-              .access_cb = uart_receive},
+              .access_cb = _uart_receive},
              {.uuid = (ble_uuid_t *)&CHAR_UUID_TX,
               .flags = BLE_GATT_CHR_F_NOTIFY,
               .val_handle = &notify_char_attr_hdl,
@@ -113,7 +113,7 @@ static void ble_app_advertise(void) {
 
   int err = ble_gap_adv_set_fields(&fields);
   if (err) {
-    ESP_LOGE(TAG, "ble_gap_adv_set_fields, err %d", err);
+    ESP_LOGE(_TAG, "ble_gap_adv_set_fields, err %d", err);
   }
 
   memset(&fields_ext, 0, sizeof(fields_ext));
@@ -123,7 +123,7 @@ static void ble_app_advertise(void) {
   fields_ext.name_is_complete = 1;
   err = ble_gap_adv_rsp_set_fields(&fields_ext);
   if (err) {
-    ESP_LOGE(TAG, "ble_gap_adv_rsp_set_fields fields_ext, name might be too long, err %d", err);
+    ESP_LOGE(_TAG, "ble_gap_adv_rsp_set_fields fields_ext, name might be too long, err %d", err);
   }
 
   struct ble_gap_adv_params adv_params;

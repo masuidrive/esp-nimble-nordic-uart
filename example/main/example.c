@@ -26,6 +26,7 @@ void echoTask(void *parameter) {
         mbuf[item_size] = '\0';
 
         nordic_uart_sendln(mbuf);
+        puts(mbuf);
         vRingbufferReturnItem(nordic_uart_rx_buf_handle, (void *)item);
       }
     } else {

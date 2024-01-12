@@ -17,7 +17,7 @@ static const char *_TAG = "NORDIC UART";
 #define BLE_SEND_MTU 128
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define B0(x) ((x)&0xFF)
+#define B0(x) ((x) & 0xFF)
 #define B1(x) (((x) >> 8) & 0xFF)
 #define B2(x) (((x) >> 16) & 0xFF)
 #define B3(x) (((x) >> 24) & 0xFF)
@@ -228,13 +228,11 @@ esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nord
   _nordic_uart_buf_init();
 
   // Initialize NimBLE
-  esp_err_t ret = esp_nimble_hci_and_controller_init();
+  esp_err_t ret = nimble_port_init();
   if (ret != ESP_OK) {
-    ESP_LOGE(_TAG, "esp_nimble_hci_and_controller_init() failed with error: %d", ret);
-    return ESP_FAIL;
+    ESP_LOGE(_TAG, "nimble_port_init() failed with error: %d", ret);
   }
-  nimble_port_init();
-
+  
   // Initialize the NimBLE Host configuration
   // Bluetooth device name for advertisement
   ble_svc_gap_device_name_set(device_name);
@@ -261,10 +259,9 @@ void _nordic_uart_stop(void) {
 
   int ret = nimble_port_stop();
   if (ret == 0) {
-    nimble_port_deinit();
-    ret = esp_nimble_hci_and_controller_deinit();
+    ret = nimble_port_deinit();
     if (ret != ESP_OK) {
-      ESP_LOGE(_TAG, "esp_nimble_hci_and_controller_deinit() failed with error: %d", ret);
+      ESP_LOGE(_TAG, "nimble_port_deinit() failed with error: %d", ret);
     }
   }
 

@@ -8,5 +8,7 @@ idf_component_register(
   SRC_DIRS
     "src"
   REQUIRES
-    bt
+    "bt"
+    "nvs_flash"
+    "esp_ringbuf"
 )

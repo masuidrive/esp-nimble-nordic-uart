@@ -1,161 +1,157 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>BLE Nordic UART Terminal</title>
-   </head>
-  <style>
-    body {
-      font-family: Inconsolata, monospace;
-    }
-    #log {
-      overflow: auto;
-      background-color: black;
-      color: white;
-      padding: .5em;
-      margin: .5em 0;
-    }
 
-    #message {
-      width: 60vw;
-    }
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BLE Nordic UART Terminal</title>
+</head>
+<style>
+  body {
+    font-family: Inconsolata, monospace;
+  }
 
-    #messageForm {
-    }
-  </style>
+  #log {
+    overflow: auto;
+    background-color: black;
+    color: white;
+    padding: .5em;
+    margin: .5em 0;
+  }
 
-  <body>
-    <h1>BLE Nordic UART Terminal</h1>
-    <div id="connectForm">
-      <input id="namePrefix" placeholder="Device name prefix" value="Nordic"/>
-      <button onclick="onStartButtonClick()">Connect to BLE Nordic UART</button>
+  #message {
+    width: 60vw;
+  }
+</style>
+
+<body>
+  <h1>BLE Nordic UART Terminal</h1>
+  <div id="connectForm">
+    <div>
+      Please include the first few characters of the device name. The example is "Nordic".
     </div>
+    <input id="namePrefix" placeholder="Device name prefix" value="Nordic" />
+    <button onclick="onStartButtonClick()">Connect to BLE Nordic UART</button>
+  </div>
 
-    <div id="connectedForm" style="display: none">
-      <div id="messageForm">
-        <textarea id="message" placeholder="Command text"></textarea>
-        <button onclick="sendMessage()">Send</button>
-      </div>
-      <div>
-        <button onclick='sendMessage("RUN 1\n{\"command\":\"start\",\"led\":{\"animation\":\"breath\", \"color\":1052688, \"interval\":1.0},\"sound\":{\"name\":\"alerm1\",\"loop\":10}}")'>White breath &amp; alerm1</button>
-        <button onclick='sendMessage("RUN 1\n{\"command\":\"start\",\"led\":{\"animation\":\"blink\", \"color\":8912896, \"interval\":1.0},\"sound\":{\"name\":\"warning1\"}}")'>Red breath &amp; warning1</button>
-        <button onclick='sendMessage("RUN 1\n{\"command\":\"start\",\"led\":{\"animation\":\"light\", \"color\":34816, \"interval\":1.0},\"sound\":{\"name\":\"digital1\"}}")'>Green &amp; digital1</button>
-        <button onclick='sendMessage("RUN 1\n{\"command\":\"start\",\"led\":{\"animation\":\"blink\", \"color\":34816, \"interval\":1.0},\"sound\":{\"url\":\"http://attention1-firmware.s3.ap-northeast-1.amazonaws.com/reservation1.bin\"}}")'>Green &amp; 予約が一件入っています </button>
-
-      </div>
-      <div id="log"></div>
-      <button onclick="onDisconnectButtonClick()">Disconnect</button>
+  <div id="connectedForm" style="display: none">
+    <div id="messageForm">
+      <textarea id="message" placeholder="Command text"></textarea>
+      <button onclick="sendMessage()">Send</button>
     </div>
+    <div id="log"></div>
+    <button onclick="onDisconnectButtonClick()">Disconnect</button>
+  </div>
 
-    <script>
-      const UUID_1 = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-      const UUID_2 = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // Write
-      const UUID_3 = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // Notify
-      const BLE_MTU = 128;
+  <script>
+    const UUID_1 = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const UUID_2 = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // Write
+    const UUID_3 = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // Notify
+    const BLE_MTU = 128;
 
-      let bluetoothDevice;
-      let characteristic_A, characteristic_B;
-      const namePrefixEl = document.getElementById("namePrefix");
-      const messageEl = document.getElementById("message");
-      namePrefixEl.value = window.localStorage.getItem("namePrefix") || "";
-      const logEl = document.getElementById("log");
+    let bluetoothDevice;
+    let characteristic_A, characteristic_B;
+    const namePrefixEl = document.getElementById("namePrefix");
+    const messageEl = document.getElementById("message");
+    namePrefixEl.value = window.localStorage.getItem("namePrefix") || "";
+    const logEl = document.getElementById("log");
 
-      function consoleWrite(text, color) {
-        const el = document.createElement("div");
-        el.innerText = text;
-        el.style.color = color || "white";
-        logEl.prepend(el);
-      }
+    function consoleWrite(text, color) {
+      const el = document.createElement("div");
+      el.innerText = text;
+      el.style.color = color || "white";
+      logEl.prepend(el);
+    }
 
-      async function onStartButtonClick() {
-        try {
-          document.getElementById("connectForm").style.display = "none";
-          document.getElementById("connectedForm").style.display = "block";
-          logEl.innerHTML = "";
+    async function onStartButtonClick() {
+      try {
+        document.getElementById("connectForm").style.display = "none";
+        document.getElementById("connectedForm").style.display = "block";
+        logEl.innerHTML = "";
 
-          consoleWrite("Requesting Bluetooth Device...", "grey");
-          bluetoothDevice = await navigator.bluetooth.requestDevice({
-            filters: [
-              { services: [ UUID_1 ] },
-              { namePrefix: namePrefixEl.value }
-           ],
-          });
-          bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        consoleWrite("Requesting Bluetooth Device...", "grey");
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          filters: [
+            { services: [UUID_1] },
+            { namePrefix: namePrefixEl.value }
+          ],
+        });
+        bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
-          consoleWrite("Connecting to GATT Server...", "grey");
-          const server = await bluetoothDevice.gatt.connect();
-          consoleWrite("Getting Service...", "grey");
-          const service = await server.getPrimaryService(UUID_1);
-          consoleWrite("Getting Characteristic...", "grey");
-          characteristic_A = await service.getCharacteristic(UUID_2);
-          consoleWrite("Getting Characteristic...", "grey");
-          characteristic_B = await service.getCharacteristic(UUID_3);
-          await characteristic_B.startNotifications();
-          consoleWrite("Connected.", "grey");
-          characteristic_B.addEventListener(
-            "characteristicvaluechanged",
-            handleNotifications
-          );
-          bluetoothDevice.on
+        consoleWrite("Connecting to GATT Server...", "grey");
+        const server = await bluetoothDevice.gatt.connect();
+        consoleWrite("Getting Service...", "grey");
+        const service = await server.getPrimaryService(UUID_1);
+        consoleWrite("Getting Characteristic...", "grey");
+        characteristic_A = await service.getCharacteristic(UUID_2);
+        consoleWrite("Getting Characteristic...", "grey");
+        characteristic_B = await service.getCharacteristic(UUID_3);
+        await characteristic_B.startNotifications();
+        consoleWrite("Connected.", "grey");
+        characteristic_B.addEventListener(
+          "characteristicvaluechanged",
+          handleNotifications
+        );
+        bluetoothDevice.on
 
-          window.localStorage.setItem("namePrefix", namePrefixEl.value);
-        } catch (error) {
-          console.error(error);
-          consoleWrite(error.stack, "#FF878D");
-          consoleWrite(error.name + ': ' + error.message, "#FF878D");
-          document.getElementById("connectForm").style.display = "block";
-          document.getElementById("connectedForm").style.display = "none";
-        }
-      }
-
-      async function onDisconnectButtonClick() {
-        bluetoothDevice.gatt.disconnect();
-      }
-
-      async function onDisconnected() {
+        window.localStorage.setItem("namePrefix", namePrefixEl.value);
+      } catch (error) {
+        console.error(error);
+        consoleWrite(error.stack, "#FF878D");
+        consoleWrite(error.name + ': ' + error.message, "#FF878D");
         document.getElementById("connectForm").style.display = "block";
         document.getElementById("connectedForm").style.display = "none";
       }
-      async function sendMessage(msg) {
-        if (!characteristic_A) {
-          return;
+    }
+
+    async function onDisconnectButtonClick() {
+      bluetoothDevice.gatt.disconnect();
+    }
+
+    async function onDisconnected() {
+      document.getElementById("connectForm").style.display = "block";
+      document.getElementById("connectedForm").style.display = "none";
+    }
+    async function sendMessage(msg) {
+      if (!characteristic_A) {
+        return;
+      }
+      const text = (msg ?? messageEl.value).split(/\r*\n/g).join("\r\n") + "\r\n";
+      const arrayBuffe = new TextEncoder().encode(text);
+      messageEl.value = "";
+      consoleWrite(text, "#8787FF");
+      try {
+        for (let i = 0; i < arrayBuffe.length; i += BLE_MTU) {
+          await characteristic_A.writeValue(arrayBuffe.slice(i, i + BLE_MTU));
         }
-        const text = (msg ?? messageEl.value).split(/\r*\n/g).join("\r\n") + "\r\n";
-        const arrayBuffe = new TextEncoder().encode(text);
-        messageEl.value = "";
-        consoleWrite(text, "#8787FF");
+      } catch (error) {
+        console.error(error);
+        consoleWrite(error.stack, "#FF878D");
+        consoleWrite(error.name + ': ' + error.message, "#FF878D");
+      }
+    }
+
+    let rx_buffer = "";
+    async function handleNotifications(event) {
+      if (characteristic_B) {
         try {
-          for(let i = 0; i < arrayBuffe.length; i += BLE_MTU) {
-            await characteristic_A.writeValue(arrayBuffe.slice(i, i + BLE_MTU));
+          let value = event.target.value;
+          console.log(value);
+          const text = new TextDecoder().decode(value);
+          rx_buffer += text;
+          let splited = rx_buffer.split(/\r*\n/g);
+          for (let i = 0; i < splited.length - 1; ++i) {
+            consoleWrite(splited.shift());
           }
+          rx_buffer = splited.shift();
         } catch (error) {
           console.error(error);
           consoleWrite(error.stack, "#FF878D");
           consoleWrite(error.name + ': ' + error.message, "#FF878D");
         }
       }
+    }
+  </script>
+</body>
 
-      let rx_buffer = "";
-      async function handleNotifications(event) {
-        if (characteristic_B) {
-          try {
-            let value = event.target.value;
-            console.log(value);
-            const text = new TextDecoder().decode(value);
-            rx_buffer += text;
-            let splited = rx_buffer.split(/\r*\n/g);
-            for(let i = 0; i < splited.length - 1; ++i) {
-              consoleWrite(splited.shift());
-            }
-            rx_buffer = splited.shift();
-          } catch (error) {
-            console.error(error);
-            consoleWrite(error.stack, "#FF878D");
-            consoleWrite(error.name + ': ' + error.message, "#FF878D");
-          }
-        }
-      }
-    </script>
-  </body>
 </html>

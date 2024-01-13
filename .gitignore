@@ -21,3 +21,6 @@ doxygen_warnings.txt
 # Ignore certificate files
 *.pem
 *.crt
+
+# 
+sdkconfig

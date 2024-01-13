@@ -258,12 +258,13 @@ void _nordic_uart_stop(void) {
   }
 
   int ret = nimble_port_stop();
-  if (ret == 0) {
+  if (ret == ESP_OK) {
     ret = nimble_port_deinit();
     if (ret != ESP_OK) {
       ESP_LOGE(_TAG, "nimble_port_deinit() failed with error: %d", ret);
     }
   }
+  _nordic_uart_buf_deinit();
 
   _nordic_uart_callback = NULL;
 }

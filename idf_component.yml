@@ -17,7 +17,7 @@ idf_target:
   - "esp32"
   - "esp32s2"
   - "esp32c3"
-idf_version: ">=5.1"
+idf_version: ">=5.0"
 dependencies:
   idf:
-    version: ">=5.1"
+    version: ">=5.0"

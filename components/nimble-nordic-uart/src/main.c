@@ -30,6 +30,6 @@ esp_err_t nordic_uart_start(const char *device_name, void (*callback)(enum nordi
   return _nordic_uart_start(device_name, callback);
 }
 
-void nordic_uart_stop(void) { //
-  _nordic_uart_stop();
+esp_err_t nordic_uart_stop(void) { //
+  return _nordic_uart_stop();
 }

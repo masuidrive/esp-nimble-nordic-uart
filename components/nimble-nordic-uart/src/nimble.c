@@ -250,11 +250,13 @@ esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nord
   return ESP_OK;
 }
 
-void _nordic_uart_stop(void) {
+esp_err_t _nordic_uart_stop(void) {
   esp_err_t rc = ble_gap_adv_stop();
   if (rc) {
     // if already stoped BLE, some error is raised. but no problem.
     ESP_LOGD(_TAG, "Error in stopping advertisement with err code = %d", rc);
+    return ESP_FAIL;
+
   }
 
   int ret = nimble_port_stop();
@@ -262,9 +264,12 @@ void _nordic_uart_stop(void) {
     ret = nimble_port_deinit();
     if (ret != ESP_OK) {
       ESP_LOGE(_TAG, "nimble_port_deinit() failed with error: %d", ret);
+      return ESP_FAIL;
     }
   }
   _nordic_uart_buf_deinit();
 
   _nordic_uart_callback = NULL;
+  
+  return ESP_OK;
 }

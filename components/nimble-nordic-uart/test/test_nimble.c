@@ -5,7 +5,7 @@
 
 TEST_CASE("nordic_uart_start", "[nimble]") {
   TEST_ESP_OK(nordic_uart_start("Nordic UART", NULL));
-  // vTaskDelay(500 / portTICK_PERIOD_MS);
+  vTaskDelay(500 / portTICK_PERIOD_MS);
   nordic_uart_stop();
 }
 

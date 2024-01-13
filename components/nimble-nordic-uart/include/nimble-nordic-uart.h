@@ -25,7 +25,7 @@ typedef void (*uart_receive_callback_t)(struct ble_gatt_access_ctxt *ctxt);
 esp_err_t nordic_uart_start(const char *device_name, void (*callback)(enum nordic_uart_callback_type callback_type));
 
 // Function to stop the Nordic UART service
-void nordic_uart_stop(void);
+esp_err_t nordic_uart_stop(void);
 
 // Function to send a message over Nordic UART
 // - message: String message to be sent
@@ -47,5 +47,5 @@ esp_err_t _nordic_uart_linebuf_append(char c);
 bool _nordic_uart_linebuf_initialized();
 
 esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nordic_uart_callback_type callback_type));
-void _nordic_uart_stop(void);
+esp_err_t _nordic_uart_stop(void);
 esp_err_t _nordic_uart_send(const char *message);

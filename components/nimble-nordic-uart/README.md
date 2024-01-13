@@ -2,8 +2,6 @@
 
 This library implements the Nordic UART (Universal Asynchronous Receiver-Transmitter) service over BLE (Bluetooth Low Energy) using the ESP-IDF framework. It's confirmed to work with ESP-IDF v5.1. The library allows for easy communication between an ESP32 device and a BLE client, utilizing the Nordic UART service for a simple, serial-like communication channel.
 
-License: Apache by Yuichiro MASUI <masui@masuidrive.jp>
-
 ## Features
 - Implements the Nordic UART Service (NUS) for BLE communication.
 - Provides a simple API for sending and receiving data over BLE.

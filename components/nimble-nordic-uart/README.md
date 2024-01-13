@@ -69,5 +69,5 @@ Contributions to this project are welcome. Please ensure that your code adheres 
 
 ## License
 
-This project is licensed under the Apache License - see the [LICENSE] file for details.
-Author 
+This project is licensed under the Apache License.
+Copyright 2021- Yuichiro Masui <masui@masuidrive.jp>

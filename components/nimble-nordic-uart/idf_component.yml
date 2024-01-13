@@ -1,4 +1,4 @@
-version: "1.0.2"
+version: "1.0.3"
 description: "A BLE Nordic UART service implementation using NimBLE for ESP-IDF."
 
 url: "https://github.com/masuidrive/esp-nimble-nordic-uart"

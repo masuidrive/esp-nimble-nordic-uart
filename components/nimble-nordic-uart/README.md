@@ -1,6 +1,7 @@
 # NimBLE Nordic UART driver for ESP-IDF V5.x
 
-This library implements the Nordic UART (Universal Asynchronous Receiver-Transmitter) service over BLE (Bluetooth Low Energy) using the ESP-IDF framework. It's confirmed to work with ESP-IDF v5.1. The library allows for easy communication between an ESP32 device and a BLE client, utilizing the Nordic UART service for a simple, serial-like communication channel.
+This library implements the Nordic UART (Universal Asynchronous Receiver-Transmitter) service over BLE (Bluetooth Low Energy) using the ESP-IDF framework. It's confirmed to work with ESP-IDF v5.1.
+The library allows for easy communication between an ESP32 device and a BLE client, utilizing the Nordic UART service for a simple, serial-like communication channel.
 
 ## Features
 - Implements the Nordic UART Service (NUS) for BLE communication.
@@ -29,9 +30,22 @@ Sends a message followed by a newline character over the Nordic UART.
 Allows setting a custom callback for handling received UART data.
 - `uart_receive_callback`: Callback function that handles received data.
 
+## Install to your project
+To add this component to your ESP-IDF project, run:
+
+```
+idf.py add-dependency "masuidrive/nimble-nordic-uart"
+```
+
 ## Getting Started
 
-To use this library in your ESP-IDF project, clone this repository and include the necessary files in your project structure.
+If you want to try out this library, start by cloning the repository from GitHub:
+
+```bash
+git clone https://github.com/masuidrive/esp-nimble-nordic-uart
+```
+
+Once you have cloned the repository, you can delve into the Example and Unit Test to explore further
 
 ### Run Example
 
@@ -46,7 +60,7 @@ idf.py build flash monitor -p /dev/cu.usbserial-*
 To run the unit tests on your target device:
 
 ```bash
-cd test
+cd test-runner
 idf.py build flash monitor -p /dev/cu.usbserial-*
 ```
 
@@ -67,5 +81,5 @@ Contributions to this project are welcome. Please ensure that your code adheres 
 
 ## License
 
-This project is licensed under the Apache License.
+This project is licensed under the Apache-2.0 License.
 Copyright 2021- Yuichiro Masui <masui@masuidrive.jp>

@@ -1,7 +1,0 @@
-## IDF Component Manager Manifest File
-dependencies:
-  masuidrive/nimble-nordic-uart:
-    version: '*'
-    path: '..'
-  idf:
-    version: ">=5.0"

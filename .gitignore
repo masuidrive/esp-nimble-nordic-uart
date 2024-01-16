@@ -24,3 +24,4 @@ doxygen_warnings.txt
 
 # 
 sdkconfig
+dependencies.lock

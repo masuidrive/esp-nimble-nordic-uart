@@ -143,6 +143,32 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
     ESP_LOGI(_TAG, "BLE_GAP_EVENT_CONNECT %s", event->connect.status == 0 ? "OK" : "Failed");
     if (event->connect.status == 0) {
       ble_conn_hdl = event->connect.conn_handle;
+
+      /* Check connection handle */
+      struct ble_gap_conn_desc desc;
+      int rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
+      if (rc != 0) {
+          ESP_LOGE(_TAG,
+                   "failed to find connection by handle, error code: %d",
+                   rc);
+          return rc;
+      }
+
+      /* Try to update connection parameters! */
+      struct ble_gap_upd_params params = {.itvl_min = desc.conn_itvl,
+                                          .itvl_max = desc.conn_itvl,
+                                          .latency = 3,
+                                          .supervision_timeout =
+                                              desc.supervision_timeout};
+      rc = ble_gap_update_params(event->connect.conn_handle, &params);
+      if (rc != 0) {
+          ESP_LOGE(
+              _TAG,
+              "failed to update connection parameters, error code: %d",
+              rc);
+          return rc;
+      }
+      
       if (_nordic_uart_callback)
         _nordic_uart_callback(NORDIC_UART_CONNECTED);
     } else {

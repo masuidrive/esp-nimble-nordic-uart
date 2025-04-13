@@ -7,6 +7,10 @@
 #include <freertos/ringbuf.h>
 #include <host/ble_hs.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Handle for the Nordic UART RX ring buffer
 extern RingbufHandle_t nordic_uart_rx_buf_handle;
 
@@ -49,3 +53,7 @@ bool _nordic_uart_linebuf_initialized();
 esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nordic_uart_callback_type callback_type));
 esp_err_t _nordic_uart_stop(void);
 esp_err_t _nordic_uart_send(const char *message);
+
+#ifdef __cplusplus
+}
+#endif
